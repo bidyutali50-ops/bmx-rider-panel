@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* BM Xpress palette — asphalt, paper, hazard orange, route teal */
+  --color-brand-50: #fff3ec;
+  --color-brand-100: #ffe3d1;
+  --color-brand-200: #ffc3a1;
+  --color-brand-300: #ff9c66;
+  --color-brand-400: #fb7530;
+  --color-brand-500: #f4570c;
+  --color-brand-600: #d94708;
+  --color-brand-700: #b1370a;
+  --color-brand-800: #8d2d10;
+  --color-brand-900: #732810;
+
+  --color-ink-50: #f5f7f9;
+  --color-ink-100: #e9edf1;
+  --color-ink-200: #d3dae2;
+  --color-ink-300: #aeb9c6;
+  --color-ink-400: #8394a5;
+  --color-ink-500: #64768a;
+  --color-ink-600: #4f5e72;
+  --color-ink-700: #414d5d;
+  --color-ink-800: #39424f;
+  --color-ink-850: #1d232b;
+  --color-ink-900: #161b21;
+  --color-ink-950: #0c0f13;
+
+  --color-teal-500: #0e7c7b;
+
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-card: 0.875rem;
+
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.21, 0.6, 0.35, 1) both;
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+:root {
+  --bg: var(--color-ink-50);
+  --card: #ffffff;
+  --card-glass: rgba(255, 255, 255, 0.72);
+  --border: var(--color-ink-200);
+  --fg: var(--color-ink-900);
+  --muted: var(--color-ink-500);
+}
+
+.dark {
+  --bg: var(--color-ink-950);
+  --card: var(--color-ink-900);
+  --card-glass: rgba(22, 27, 33, 0.72);
+  --border: #242c36;
+  --fg: var(--color-ink-100);
+  --muted: var(--color-ink-400);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Signature: waybill money figure — mono digits over a dashed baseline */
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.waybill-rule {
+  border-bottom: 1px dashed color-mix(in srgb, var(--border) 100%, transparent);
+}
+
+/* Glass card */
+.glass {
+  background: var(--card-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.surface {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus visibility */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
