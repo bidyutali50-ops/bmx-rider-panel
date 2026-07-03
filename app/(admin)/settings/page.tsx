@@ -45,7 +45,7 @@ export default function SettingsPage() {
     queryKey: ["staff-users"],
     queryFn: async () => {
       const { data } = await supabase.from("profiles")
-        .select("*, hubs(name)").in("role", STAFF_ROLES).order("full_name");
+        .select("*, hubs!profiles_hub_id_fkey(name)").in("role", STAFF_ROLES).order("full_name");
       return (data ?? []) as Profile[];
     },
   });

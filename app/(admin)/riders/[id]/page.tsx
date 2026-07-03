@@ -38,7 +38,7 @@ export default function RiderDetailPage({ params }: { params: Promise<{ id: stri
     queryKey: ["rider", id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles").select("*, hubs(id, name, code)").eq("id", id).single();
+        .from("profiles").select("*, hubs!profiles_hub_id_fkey(id, name, code)").eq("id", id).single();
       if (error) throw error;
       return data as Profile;
     },

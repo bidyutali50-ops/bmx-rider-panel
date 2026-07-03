@@ -24,7 +24,7 @@ export function useRiders(opts?: { activeOnly?: boolean }) {
     queryFn: async () => {
       let q = supabaseBrowser()
         .from("profiles")
-        .select("*, hubs(id, name, code)")
+        .select("*, hubs!profiles_hub_id_fkey(id, name, code)")
         .eq("role", "rider")
         .order("full_name");
       if (opts?.activeOnly) q = q.eq("active", true);
@@ -44,7 +44,7 @@ export function useMyProfile() {
       if (!userData.user) return null;
       const { data } = await supabase
         .from("profiles")
-        .select("*, hubs(id, name, code)")
+        .select("*, hubs!profiles_hub_id_fkey(id, name, code)")
         .eq("id", userData.user.id)
         .single();
       return data as Profile | null;
