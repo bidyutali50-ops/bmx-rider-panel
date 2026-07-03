@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Building2, IndianRupee, CalendarOff, Users, Plus, KeyRound, Trash2, Loader2, Save } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useHubs, useMyProfile } from "@/lib/hooks";
-import { displayLogin } from "@/lib/utils";
+import { displayLogin, edgeErrorMessage} from "@/lib/utils";
 import { logActivity } from "@/lib/notify";
 import { ROLE_LABELS, STAFF_ROLES, type Profile, type Role } from "@/lib/types";
 import { PageHeader } from "@/components/app/page-header";
@@ -98,7 +98,7 @@ export default function SettingsPage() {
       },
     });
     setSaving(false);
-    const err = error?.message || (data as { error?: string })?.error;
+    const err = (error || (data as { error?: string })?.error) ? await edgeErrorMessage(error, data) : null;
     if (err) { toast.error("Could not create user", { description: err }); return; }
     toast.success("Staff user created");
     logActivity("Created staff user", "user", undefined, { name: staffForm.full_name, role: staffForm.role });
@@ -114,7 +114,7 @@ export default function SettingsPage() {
       body: { action: "reset_password", user_id: resetTarget.id, password: resetPwd },
     });
     setSaving(false);
-    const err = error?.message || (data as { error?: string })?.error;
+    const err = (error || (data as { error?: string })?.error) ? await edgeErrorMessage(error, data) : null;
     if (err) { toast.error("Reset failed", { description: err }); return; }
     toast.success("Password reset");
     setResetTarget(null); setResetPwd("");

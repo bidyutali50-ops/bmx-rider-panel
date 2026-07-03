@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useHubs } from "@/lib/hooks";
-import { formatINR, displayLogin } from "@/lib/utils";
+import { formatINR, displayLogin, edgeErrorMessage} from "@/lib/utils";
 import { pushNotification, logActivity } from "@/lib/notify";
 import type { Profile, RateCard, RiderWallet, PaymentType } from "@/lib/types";
 import { PageHeader } from "@/components/app/page-header";
@@ -155,7 +155,7 @@ export default function RiderDetailPage({ params }: { params: Promise<{ id: stri
       body: { action: "reset_password", user_id: rider.id, password: newPassword },
     });
     setSaving(false);
-    const err = error?.message || (data as { error?: string })?.error;
+    const err = (error || (data as { error?: string })?.error) ? await edgeErrorMessage(error, data) : null;
     if (err) { toast.error("Reset failed", { description: err }); return; }
     toast.success("Password reset", { description: "Rider must set a new password at next login." });
     logActivity("Reset rider password", "rider", rider.id);

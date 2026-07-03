@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, UploadCloud, ShieldCheck } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useHubs } from "@/lib/hooks";
+import { edgeErrorMessage } from "@/lib/utils";
 import { pushNotification, logActivity } from "@/lib/notify";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
@@ -143,10 +144,10 @@ export default function NewRiderPage() {
       },
     });
 
-    const err = error?.message || (data as { error?: string })?.error;
-    if (err) {
+    if (error || (data as { error?: string })?.error) {
       setSaving(false);
-      toast.error("Could not create rider", { description: err });
+      const err = await edgeErrorMessage(error, data);
+      toast.error("Could not create rider", { description: err ?? undefined });
       return;
     }
 
