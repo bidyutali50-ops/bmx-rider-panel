@@ -17,6 +17,7 @@ import type { Profile, RateCard, RiderWallet, PaymentType } from "@/lib/types";
 import { PageHeader } from "@/components/app/page-header";
 import { RiderChip } from "@/components/app/rider-chip";
 import { StatCard } from "@/components/app/stat-card";
+import { RiderWalletTab } from "@/components/app/rider-wallet-tab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -199,6 +200,7 @@ export default function RiderDetailPage({ params }: { params: Promise<{ id: stri
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="rate">Rate Card</TabsTrigger>
+          <TabsTrigger value="wallet">Wallet</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
@@ -293,6 +295,10 @@ export default function RiderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="wallet" className="mt-4">
+          <RiderWalletTab riderId={rider.id} riderName={rider.full_name} />
         </TabsContent>
       </Tabs>
 

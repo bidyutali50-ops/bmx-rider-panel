@@ -37,7 +37,7 @@ export default function RiderPayoutsPage() {
     enabled: !!me,
     queryFn: async () => {
       const { data } = await supabase.from("rider_wallets").select("*").eq("rider_id", me!.id).maybeSingle();
-      return (data ?? { total_earned: 0, total_paid: 0, pending_amount: 0, wallet_balance: 0 }) as RiderWallet;
+      return (data ?? { total_earned: 0, total_paid: 0, pending_amount: 0, adjustments: 0, wallet_balance: 0 }) as RiderWallet;
     },
   });
 

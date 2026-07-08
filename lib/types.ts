@@ -134,7 +134,17 @@ export interface RiderWallet {
   total_earned: number;
   total_paid: number;
   pending_amount: number;
+  adjustments: number;
   wallet_balance: number;
+}
+
+export interface WalletAdjustment {
+  id: string;
+  rider_id: string;
+  amount: number;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export const STAFF_ROLES: Role[] = ["super_admin", "admin", "hub_manager", "data_entry"];
