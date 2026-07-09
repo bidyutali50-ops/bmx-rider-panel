@@ -131,13 +131,29 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
     const raw = Number(amount);
     if (!raw || raw <= 0) { toast.error("Enter an amount greater than 0"); return; }
     setBusy(true);
-    const { data: userData } = await supabase.auth.getUser();
     const signed = mode === "credit" ? raw : -raw;
-    const { error } = await supabase.from("wallet_adjustments").insert({
-      rider_id: riderId, amount: signed, reason: reason.trim() || null, created_by: userData.user?.id ?? null,
-    });
+
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.rpc("apply_rider_credit", {
+        p_rider_id: riderId,
+        p_amount: signed,
+        p_reason: reason.trim() || null,
+      });
+      error = res.error;
+    } catch (e) {
+      error = { message: String((e as Error)?.message ?? e) };
+    }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      const net = /failed to fetch|networkerror|load failed/i.test(error.message);
+      toast.error(net ? "Could not reach the server" : "Could not save", {
+        description: net
+          ? "Check your internet, or turn off any ad-blocker / privacy extension for this site and try again."
+          : error.message,
+      });
+      return;
+    }
     toast.success(mode === "credit" ? "Money added" : "Money deducted", { description: `${formatINR(raw)} · ${riderName}` });
     pushNotification({
       user_id: riderId, type: "wallet",
@@ -151,10 +167,23 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
 
   async function deleteRow(row: LedgerRow) {
     setBusy(true);
-    const table = row.kind === "earning" ? "data_entries" : row.kind === "payout" ? "payout_requests" : "wallet_adjustments";
-    const { error } = await supabase.from(table).delete().eq("id", row.id);
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.rpc("remove_ledger_entry", { p_kind: row.kind, p_id: row.id });
+      error = res.error;
+    } catch (e) {
+      error = { message: String((e as Error)?.message ?? e) };
+    }
     setBusy(false);
-    if (error) { toast.error("Could not delete", { description: error.message }); return; }
+    if (error) {
+      const net = /failed to fetch|networkerror|load failed/i.test(error.message);
+      toast.error(net ? "Could not reach the server" : "Could not delete", {
+        description: net
+          ? "Check your internet, or turn off any ad-blocker / privacy extension for this site and try again."
+          : error.message,
+      });
+      return;
+    }
     toast.success(`${KIND_LABEL[row.kind]} deleted`);
     logActivity(`Deleted ${row.kind}`, "rider", riderId, { entry: row.id, amount: row.amount });
     setConfirmDel(null);
