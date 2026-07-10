@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Warehouse, Plus, Pencil, Trash2, Search, MapPin, Phone, Loader2 } from "lucide-react";
+import { Warehouse, Plus, Pencil, Trash2, Search, MapPin, Phone, Loader2, Crosshair } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useHubs } from "@/lib/hooks";
 import { pushNotification, logActivity } from "@/lib/notify";
@@ -33,6 +33,10 @@ const hubSchema = z.object({
   manager_id: z.string().optional(),
   contact_number: z.string().optional(),
   status: z.enum(["active", "inactive"]),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  geofence_radius_m: z.string().optional(),
+  geofence_enabled: z.boolean().optional(),
 });
 type HubForm = z.infer<typeof hubSchema>;
 
@@ -46,6 +50,22 @@ export default function HubsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Hub | null>(null);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  function useMyLocation() {
+    if (!("geolocation" in navigator)) { toast.error("This device cannot share location"); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        form.setValue("latitude", pos.coords.latitude.toFixed(6));
+        form.setValue("longitude", pos.coords.longitude.toFixed(6));
+        toast.success("Location captured", { description: `Accurate to about ${Math.round(pos.coords.accuracy)} m` });
+      },
+      () => { setLocating(false); toast.error("Could not get location", { description: "Allow location access and try again." }); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
 
   const managers = useQuery({
     queryKey: ["managers"],
@@ -83,7 +103,7 @@ export default function HubsPage() {
 
   function openCreate() {
     setEditing(null);
-    form.reset({ name: "", code: "", address: "", city: "", state: "", pincode: "", manager_id: "", contact_number: "", status: "active" });
+    form.reset({ name: "", code: "", address: "", city: "", state: "", pincode: "", manager_id: "", contact_number: "", status: "active", latitude: "", longitude: "", geofence_radius_m: "100", geofence_enabled: true });
     setOpen(true);
   }
 
@@ -98,6 +118,10 @@ export default function HubsPage() {
       pincode: hub.pincode ?? "",
       manager_id: hub.manager_id ?? "",
       contact_number: hub.contact_number ?? "",
+      latitude: hub.latitude != null ? String(hub.latitude) : "",
+      longitude: hub.longitude != null ? String(hub.longitude) : "",
+      geofence_radius_m: hub.geofence_radius_m != null ? String(hub.geofence_radius_m) : "100",
+      geofence_enabled: hub.geofence_enabled ?? true,
       status: hub.status ?? "active",
     });
     setOpen(true);
@@ -105,7 +129,26 @@ export default function HubsPage() {
 
   async function onSubmit(values: HubForm) {
     setSaving(true);
-    const payload = { ...values, manager_id: values.manager_id || null };
+    const lat = values.latitude?.trim() ? Number(values.latitude) : null;
+    const lng = values.longitude?.trim() ? Number(values.longitude) : null;
+    if ((lat === null) !== (lng === null)) {
+      setSaving(false);
+      toast.error("Set both latitude and longitude, or leave both blank");
+      return;
+    }
+    if (lat !== null && (Math.abs(lat) > 90 || Math.abs(lng as number) > 180)) {
+      setSaving(false);
+      toast.error("Latitude must be -90..90 and longitude -180..180");
+      return;
+    }
+    const payload = {
+      ...values,
+      manager_id: values.manager_id || null,
+      latitude: lat,
+      longitude: lng,
+      geofence_radius_m: Number(values.geofence_radius_m || 100) || 100,
+      geofence_enabled: values.geofence_enabled ?? true,
+    };
     const res = editing
       ? await supabase.from("hubs").update(payload).eq("id", editing.id)
       : await supabase.from("hubs").insert(payload);
@@ -272,6 +315,36 @@ export default function HubsPage() {
               <Label>Contact number</Label>
               <Input {...form.register("contact_number")} />
             </div>
+            <div className="col-span-2 mt-1 rounded-xl border border-dashed border-[var(--border)] p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold">Punch-in location (geofence)</p>
+                  <p className="text-xs text-[var(--muted)]">Riders can only punch in/out within this radius. Leave blank to allow anywhere.</p>
+                </div>
+                <Button type="button" variant="secondary" size="sm" disabled={locating} onClick={useMyLocation}>
+                  {locating ? <Loader2 className="animate-spin" /> : <Crosshair />} Use my location
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <Label>Latitude</Label>
+                  <Input {...form.register("latitude")} placeholder="22.5760" className="money" />
+                </div>
+                <div>
+                  <Label>Longitude</Label>
+                  <Input {...form.register("longitude")} placeholder="88.2360" className="money" />
+                </div>
+                <div>
+                  <Label>Radius (metres)</Label>
+                  <Input {...form.register("geofence_radius_m")} type="number" min={20} className="money" />
+                </div>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input type="checkbox" {...form.register("geofence_enabled")} />
+                Enforce this geofence
+              </label>
+            </div>
+
             <div className="col-span-2">
               <Label>Hub manager</Label>
               <Select {...form.register("manager_id")}>

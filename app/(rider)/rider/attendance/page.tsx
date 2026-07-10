@@ -25,6 +25,7 @@ export default function RiderAttendancePage() {
   const { data: me } = useMyProfile();
   const [month, setMonth] = useState(todayISO().slice(0, 7));
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
   const today = todayISO();
 
   const todayQ = useQuery({
@@ -56,33 +57,78 @@ export default function RiderAttendancePage() {
     return s;
   }, [monthQ.data]);
 
-  async function checkIn() {
-    if (!me) return;
-    setBusy(true);
-    const now = new Date();
-    const isLate = now.getHours() >= 10; // after 10:00 counts as late
-    const { error } = await supabase.from("attendance").upsert(
-      { rider_id: me.id, att_date: today, check_in: now.toISOString(), status: isLate ? "late" : "present" },
-      { onConflict: "rider_id,att_date" }
-    );
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(isLate ? "Checked in (late)" : "Checked in");
-    qc.invalidateQueries({ queryKey: ["my-attendance-today"] });
-    qc.invalidateQueries({ queryKey: ["my-attendance-month"] });
+  /** Ask the phone for a precise fix. Rejects quickly if permission is denied. */
+  function getLocation(): Promise<{ lat: number; lng: number }> {
+    return new Promise((resolve, reject) => {
+      if (!("geolocation" in navigator)) {
+        reject(new Error("This device cannot share location."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            reject(new Error("Location permission denied. Allow location for this site, then try again."));
+          } else if (err.code === err.TIMEOUT) {
+            reject(new Error("Could not get your location in time. Move outdoors and try again."));
+          } else {
+            reject(new Error("Could not get your location. Turn on GPS and try again."));
+          }
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
   }
 
-  async function checkOut() {
-    if (!me || !todayQ.data) return;
+  async function punch(action: "in" | "out") {
+    if (!me) return;
     setBusy(true);
-    const { error } = await supabase.from("attendance")
-      .update({ check_out: new Date().toISOString() })
-      .eq("id", todayQ.data.id);
+    setLocating(true);
+
+    let coords: { lat: number; lng: number } | null = null;
+    try {
+      coords = await getLocation();
+    } catch (e) {
+      setBusy(false); setLocating(false);
+      toast.error("Location needed", { description: String((e as Error).message) });
+      return;
+    }
+    setLocating(false);
+
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.rpc("rider_punch", {
+        p_action: action,
+        p_lat: coords.lat,
+        p_lng: coords.lng,
+      });
+      error = res.error;
+    } catch (e) {
+      error = { message: String((e as Error)?.message ?? e) };
+    }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Checked out");
+
+    if (error) {
+      const net = /failed to fetch|networkerror|load failed/i.test(error.message);
+      toast.error(action === "in" ? "Could not punch in" : "Could not punch out", {
+        description: net ? "Check your internet connection and try again." : error.message,
+      });
+      return;
+    }
+
+    toast.success(action === "in" ? "Punched in" : "Punched out", {
+      description: action === "in"
+        ? "Your shift has started. Half of your daily MG is credited; punch out to earn the full amount."
+        : "Shift complete. Your full daily MG has been credited.",
+    });
     qc.invalidateQueries({ queryKey: ["my-attendance-today"] });
+    qc.invalidateQueries({ queryKey: ["my-attendance-month"] });
+    qc.invalidateQueries({ queryKey: ["my-wallet"] });
+    qc.invalidateQueries({ queryKey: ["my-earnings"] });
   }
+
+  const checkIn = () => punch("in");
+  const checkOut = () => punch("out");
 
   const t = todayQ.data;
   const fmtTime = (iso?: string | null) => iso ? new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -92,7 +138,7 @@ export default function RiderAttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle>Today · {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", weekday: "long" })}</CardTitle>
-          <CardDescription>Check in when you start and check out when you finish your shift</CardDescription>
+          <CardDescription>Punch in at your hub when you start, and punch out when you finish. Location is checked.</CardDescription>
         </CardHeader>
         <CardContent>
           {todayQ.isLoading ? <Skeleton className="h-20" /> : (
@@ -113,10 +159,10 @@ export default function RiderAttendancePage() {
               </div>
               <div className="flex gap-2">
                 {!t?.check_in && (
-                  <Button onClick={checkIn} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogIn />} Check In</Button>
+                  <Button onClick={checkIn} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogIn />} {locating ? "Getting location…" : "Punch In"}</Button>
                 )}
                 {t?.check_in && !t?.check_out && (
-                  <Button variant="secondary" onClick={checkOut} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogOut />} Check Out</Button>
+                  <Button variant="secondary" onClick={checkOut} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogOut />} {locating ? "Getting location…" : "Punch Out"}</Button>
                 )}
                 {t?.check_in && t?.check_out && <Badge variant="success">Shift complete</Badge>}
               </div>

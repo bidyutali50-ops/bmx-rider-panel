@@ -35,6 +35,10 @@ export interface Profile {
 }
 
 export interface Hub {
+  latitude?: number | null;
+  longitude?: number | null;
+  geofence_radius_m?: number | null;
+  geofence_enabled?: boolean | null;
   id: string;
   name: string;
   code: string | null;
