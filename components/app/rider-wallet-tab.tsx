@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Minus, Trash2, Loader2, Wallet, Scale, PencilLine } from "lucide-react";
+import { Plus, Minus, Trash2, Loader2, Wallet, Scale, PencilLine, Banknote } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { formatINR } from "@/lib/utils";
 import { pushNotification, logActivity } from "@/lib/notify";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -43,6 +44,14 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState<LedgerRow | null>(null);
+
+  // Manual payment (money already handed to the rider)
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState<"cash" | "upi" | "bank">("cash");
+  const [payRef, setPayRef] = useState("");
+  const [payNote, setPayNote] = useState("");
+  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
 
   const walletQ = useQuery({
     queryKey: ["wallet", riderId],
@@ -190,6 +199,44 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
     refresh();
   }
 
+  async function recordPayment() {
+    const amt = Number(payAmount);
+    if (!amt || amt <= 0) { toast.error("Enter an amount greater than 0"); return; }
+    setBusy(true);
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.rpc("record_rider_payment", {
+        p_rider_id: riderId,
+        p_amount: amt,
+        p_method: payMethod,
+        p_reference: payRef.trim() || null,
+        p_note: payNote.trim() || null,
+        p_paid_on: payDate || null,
+      });
+      error = res.error;
+    } catch (e) {
+      error = { message: String((e as Error)?.message ?? e) };
+    }
+    setBusy(false);
+    if (error) {
+      const net = /failed to fetch|networkerror|load failed/i.test(error.message);
+      toast.error(net ? "Could not reach the server" : "Could not record payment", {
+        description: net
+          ? "Check your internet, or turn off any ad-blocker / privacy extension for this site and try again."
+          : error.message,
+      });
+      return;
+    }
+    toast.success("Payment recorded", { description: `${formatINR(amt)} paid to ${riderName} via ${payMethod.toUpperCase()}` });
+    pushNotification({
+      user_id: riderId, type: "payout", title: "Payment received",
+      body: `${formatINR(amt)} paid via ${payMethod.toUpperCase()}${payRef.trim() ? ` · Ref ${payRef.trim()}` : ""}.`,
+    });
+    logActivity("Recorded manual payment", "rider", riderId, { amount: amt, method: payMethod });
+    setPayOpen(false); setPayAmount(""); setPayRef(""); setPayNote(""); setPayMethod("cash");
+    refresh();
+  }
+
   const w = walletQ.data;
 
   return (
@@ -200,7 +247,10 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
             <CardTitle className="flex items-center gap-2"><Wallet className="size-4 text-brand-500" /> Wallet</CardTitle>
             <CardDescription>Balance = earnings + adjustments − paid out</CardDescription>
           </div>
-          <Button onClick={() => setAdjustOpen(true)}><PencilLine /> Adjust Money</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setAdjustOpen(true)}><PencilLine /> Adjust Money</Button>
+            <Button onClick={() => setPayOpen(true)}><Banknote /> Record Payment</Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? <Skeleton className="h-20" /> : (
@@ -298,6 +348,57 @@ export function RiderWalletTab({ riderId, riderName }: { riderId: string; riderN
               <Button onClick={saveAdjustment} disabled={busy}>
                 {busy ? <Loader2 className="animate-spin" /> : mode === "credit" ? <Plus /> : <Minus />}
                 {mode === "credit" ? "Add Money" : "Deduct Money"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record a payment already made to the rider */}
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent title="Record Payment" description={`Record money you have already paid to ${riderName}. This reduces the wallet balance.`}>
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Amount (₹)</Label>
+                <Input type="number" min={1} step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} className="money" placeholder={`Balance ${formatINR(w?.wallet_balance ?? 0)}`} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Method</Label>
+                <Select value={payMethod} onChange={(e) => setPayMethod(e.target.value as "cash" | "upi" | "bank")}>
+                  <option value="cash">Cash</option>
+                  <option value="upi">UPI</option>
+                  <option value="bank">Bank Transfer</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Paid On</Label>
+                <Input type="date" value={payDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setPayDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Reference {payMethod === "cash" ? "(optional)" : "(UTR / Txn ID)"}</Label>
+                <Input value={payRef} onChange={(e) => setPayRef(e.target.value)} className="money" placeholder={payMethod === "cash" ? "Voucher no." : "UTR / Transaction ID"} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Note (optional)</Label>
+              <Textarea rows={2} value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="Weekly settlement, advance recovery…" />
+            </div>
+            {payAmount && Number(payAmount) > 0 && (
+              <div className="rounded-lg bg-[var(--card)] p-2.5 text-sm text-[var(--muted)]">
+                Balance after payment:{" "}
+                <span className="money font-semibold text-brand-600 dark:text-brand-400">
+                  {formatINR((w?.wallet_balance ?? 0) - Number(payAmount))}
+                </span>
+                {Number(payAmount) > (w?.wallet_balance ?? 0) && (
+                  <span className="ml-1 text-amber-600 dark:text-amber-400">(more than the balance \u2014 this will leave the rider in advance)</span>
+                )}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setPayOpen(false)}>Cancel</Button>
+              <Button onClick={recordPayment} disabled={busy}>
+                {busy ? <Loader2 className="animate-spin" /> : <Banknote />} Record Payment
               </Button>
             </div>
           </div>
