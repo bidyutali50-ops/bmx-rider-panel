@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { BrandLockup } from "./brand";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsBell } from "./notifications-bell";
+import { InstallPrompt } from "./install-prompt";
 
 const NAV = [
   { href: "/rider", label: "Home", icon: LayoutDashboard },
@@ -70,6 +71,8 @@ export function RiderShell({ userId, name, children }: { userId: string; name: s
           })}
         </div>
       </nav>
+
+      <InstallPrompt />
     </div>
   );
 }

@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   description:
     "Rider payout management for BM XPRESS LOGISTICS PRIVATE LIMITED — hubs, riders, daily data entry, MG & per-order earnings, payouts, attendance and reports.",
   applicationName: "BM Xpress",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "BMX Rider", statusBarStyle: "black-translucent" },
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {

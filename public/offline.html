@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You're offline · BM Xpress Rider</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0; min-height: 100dvh; display: grid; place-items: center;
+        background: #0c0f13; color: #e8eaed; padding: 24px;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+      }
+      .badge {
+        width: 64px; height: 64px; border-radius: 18px; background: #f4570c;
+        display: grid; place-items: center; margin: 0 auto 20px;
+        font-weight: 700; font-size: 22px; color: #fff; letter-spacing: .5px;
+      }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      p { color: #9aa0a6; margin: 0 0 20px; line-height: 1.5; max-width: 22rem; }
+      button {
+        background: #f4570c; color: #fff; border: 0; border-radius: 10px;
+        padding: 12px 20px; font-size: 15px; font-weight: 600; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="badge">BM</div>
+      <h1>You're offline</h1>
+      <p>Check your mobile data or Wi‑Fi. Your earnings and wallet need a connection so the numbers are always up to date.</p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>
