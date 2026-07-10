@@ -83,6 +83,7 @@ export interface DataEntry {
   distance_km: number;
   earnings: number;
   incentive: number;
+  extra_incentive?: number;
   penalty: number;
   net_amount: number;
   remarks: string | null;

@@ -87,7 +87,7 @@ export default function DataEntryPage() {
         total_orders: existing.total_orders, completed_orders: existing.completed_orders,
         cancelled_orders: existing.cancelled_orders, cod_orders: existing.cod_orders,
         cod_amount: 0, distance_km: existing.distance_km,
-        incentive: existing.incentive, penalty: existing.penalty, remarks: existing.remarks ?? "",
+        incentive: Number(existing.extra_incentive ?? 0), penalty: existing.penalty, remarks: existing.remarks ?? "",
       });
     } else {
       setForm(blank);
@@ -109,7 +109,7 @@ export default function DataEntryPage() {
 
   async function save() {
     if (!rider || !calc) { toast.error("Select a rider first"); return; }
-    if (form.completed_orders > form.total_orders) { toast.error("Completed orders cannot exceed total orders"); return; }
+    if (form.total_orders > 0 && form.completed_orders > form.total_orders) { toast.error("Completed orders cannot exceed total orders"); return; }
     setSaving(true);
     const { data: userData } = await supabase.auth.getUser();
     const payload = {
@@ -118,7 +118,7 @@ export default function DataEntryPage() {
       total_orders: Number(form.total_orders || 0), completed_orders: Number(form.completed_orders || 0),
       cancelled_orders: Number(form.cancelled_orders || 0), cod_orders: Number(form.cod_orders || 0),
       distance_km: Number(form.distance_km || 0),
-      earnings: calc.earnings, incentive: calc.incentive, penalty: calc.penalty,
+      earnings: calc.earnings, incentive: calc.incentive, extra_incentive: Number(form.incentive || 0), penalty: calc.penalty,
       remarks: form.remarks.trim() || null,
     };
     const { error } = await supabase.from("data_entries").upsert(payload, { onConflict: "rider_id,entry_date" });
@@ -183,9 +183,9 @@ export default function DataEntryPage() {
                   <Num label="Completed Orders" v={form.completed_orders} set={(v) => setForm({ ...form, completed_orders: v })} />
                   <Num label="Cancelled Orders" v={form.cancelled_orders} set={(v) => setForm({ ...form, cancelled_orders: v })} />
                   <Num label="COD Orders" v={form.cod_orders} set={(v) => setForm({ ...form, cod_orders: v })} />
-                  <Num label="Distance (km)" v={form.distance_km} set={(v) => setForm({ ...form, distance_km: v })} />
-                  <Num label="Extra Incentive (₹)" v={form.incentive} set={(v) => setForm({ ...form, incentive: v })} />
-                  <Num label="Penalty (₹)" v={form.penalty} set={(v) => setForm({ ...form, penalty: v })} />
+                  <Num label="Distance (km)" v={form.distance_km} set={(v) => setForm({ ...form, distance_km: v })} decimals />
+                  <Num label="Extra Incentive (₹)" v={form.incentive} set={(v) => setForm({ ...form, incentive: v })} decimals />
+                  <Num label="Penalty (₹)" v={form.penalty} set={(v) => setForm({ ...form, penalty: v })} decimals />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Remarks</Label>
@@ -215,8 +215,10 @@ export default function DataEntryPage() {
                 <div className="space-y-1.5 text-sm">
                   {calc.breakdown.map((line, i) => (
                     <div key={i} className="waybill-rule flex justify-between gap-2 pb-1.5 text-[var(--muted)]">
-                      <span>{line.split("=")[0].split("→")[0].trim()}</span>
-                      <span className="money text-[var(--fg)]">{line.includes("=") ? line.split("=").pop() : line.includes("→") ? line.split("→").pop() : ""}</span>
+                      <span>{line.label}</span>
+                      <span className={`money ${line.negative ? "text-red-500" : "text-[var(--fg)]"}`}>
+                        {line.negative ? "−" : ""}{formatINR(line.value)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -227,6 +229,18 @@ export default function DataEntryPage() {
                     Earnings {formatINR(calc.earnings)} + Incentive {formatINR(calc.incentive)} − Penalty {formatINR(calc.penalty)}
                   </div>
                 </div>
+                {calc.warnings.length > 0 && (
+                  <div className="space-y-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                    {calc.warnings.map((w, i) => (
+                      <p key={i} className="text-xs text-amber-700 dark:text-amber-300">{w}</p>
+                    ))}
+                    {rider && (
+                      <a href={`/riders/${rider.id}`} className="inline-block text-xs font-medium text-brand-600 underline dark:text-brand-400">
+                        Open Rate Card →
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-[var(--muted)]">Select a rider to preview the payout math.</p>
@@ -280,11 +294,24 @@ export default function DataEntryPage() {
   );
 }
 
-function Num({ label, v, set }: { label: string; v: number; set: (v: number) => void }) {
+function Num({ label, v, set, decimals }: { label: string; v: number; set: (v: number) => void; decimals?: boolean }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input type="number" min={0} step="0.01" value={v} onChange={(e) => set(Number(e.target.value))} className="money" />
+      <Input
+        type="number"
+        min={0}
+        step={decimals ? "0.01" : "1"}
+        placeholder="0"
+        value={v === 0 ? "" : String(v)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") { set(0); return; }
+          const parsed = Number(raw);
+          set(Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
+        }}
+        className="money"
+      />
     </div>
   );
 }
