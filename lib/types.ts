@@ -10,6 +10,7 @@ export interface Profile {
   phone: string | null;
   email: string | null;
   rider_code: string | null;
+  client_rider_ref?: string | null;
   photo_url: string | null;
   aadhaar_number: string | null;
   pan_number: string | null;
