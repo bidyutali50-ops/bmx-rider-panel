@@ -35,7 +35,7 @@ interface BatchLine {
   total_minutes: number;
   orders: number;
   rider_amount: number;
-  status: "pending" | "paid";
+  status: "pending" | "credited" | "paid";
 }
 
 export default function PayoutBatchPage() {
@@ -76,14 +76,14 @@ export default function PayoutBatchPage() {
 
   const lines = batchQ.data?.lines ?? [];
   const batch = batchQ.data?.batch;
-  const isPaid = batch?.status === "paid";
+  const isPaid = batch?.status === "paid" || batch?.status === "confirmed";
 
   const totals = useMemo(() => ({
     client: lines.reduce((s, l) => s + Number(l.client_amount), 0),
     rider: lines.reduce((s, l) => s + Number(l.rider_amount), 0),
     payable: lines.filter((l) => l.rider_id && l.status === "pending").reduce((s, l) => s + Number(l.rider_amount), 0),
     unlinked: lines.filter((l) => !l.rider_id).length,
-    paidCount: lines.filter((l) => l.status === "paid").length,
+    paidCount: lines.filter((l) => l.status === "credited" || l.status === "paid").length,
   }), [lines]);
 
   async function buildBatch() {
@@ -117,10 +117,10 @@ export default function PayoutBatchPage() {
     const { data, error } = await supabase.rpc("confirm_payout_batch", { p_batch_id: batchId, p_method: method });
     setBusy(false);
     setConfirmOpen(false);
-    if (error) { toast.error("Could not confirm", { description: error.message }); return; }
-    const res = data as { paid_riders: number; total: number };
-    toast.success(`Paid ${res.paid_riders} rider(s)`, { description: formatINR(res.total) });
-    logActivity("Confirmed payout batch", "payout", batchId, res);
+    if (error) { toast.error("Could not submit", { description: error.message }); return; }
+    const res = data as { credited_riders: number; total: number };
+    toast.success(`${res.credited_riders} rider wallet(s) credited`, { description: `${formatINR(res.total)} now owed. Pay each rider from their Wallet with a UTR reference.` });
+    logActivity("Submitted payout batch", "payout", batchId, res);
     qc.invalidateQueries({ queryKey: ["batch", batchId] });
     qc.invalidateQueries({ queryKey: ["payouts"] });
   }
@@ -169,7 +169,7 @@ export default function PayoutBatchPage() {
             <StatCard title="Client Pays Us" value={formatINR(totals.client)} icon={IndianRupee} money tone="teal" />
             <StatCard title="We Pay Riders" value={formatINR(totals.rider)} icon={Wallet} money />
             <StatCard title="Margin" value={formatINR(totals.client - totals.rider)} hint={totals.client ? `${Math.round(((totals.client - totals.rider) / totals.client) * 100)}%` : ""} icon={Users} money tone="brand" />
-            <StatCard title={isPaid ? "Paid" : "Ready to Pay"} value={isPaid ? `${totals.paidCount} riders` : formatINR(totals.payable)} icon={isPaid ? CheckCircle2 : Wallet} tone={isPaid ? "teal" : "warn"} money={!isPaid} />
+            <StatCard title={isPaid ? "Credited to Wallets" : "Ready to Submit"} value={isPaid ? `${totals.paidCount} riders` : formatINR(totals.payable)} icon={isPaid ? CheckCircle2 : Wallet} tone={isPaid ? "teal" : "warn"} money={!isPaid} />
           </div>
 
           {totals.unlinked > 0 && (
@@ -229,7 +229,7 @@ export default function PayoutBatchPage() {
                           </button>
                         </td>
                         <td className="px-2 py-2.5 text-center">
-                          {l.status === "paid" ? <Badge variant="success">Paid</Badge>
+                          {l.status === "credited" || l.status === "paid" ? <Badge variant="success">In wallet</Badge>
                             : l.rider_id ? <Badge variant="muted">Pending</Badge>
                             : <Badge variant="warning">—</Badge>}
                         </td>
@@ -242,10 +242,10 @@ export default function PayoutBatchPage() {
               {!isPaid && (
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-brand-500/40 bg-brand-500/10 p-3">
                   <span className="text-sm">
-                    Pay <span className="font-semibold">{lines.filter((l) => l.rider_id && l.status === "pending").length}</span> linked rider(s) ·{" "}
+                    Credit <span className="font-semibold">{lines.filter((l) => l.rider_id && l.status === "pending").length}</span> linked rider wallet(s) ·{" "}
                     <span className="money font-semibold text-brand-600 dark:text-brand-400">{formatINR(totals.payable)}</span>
                   </span>
-                  <Button onClick={() => setConfirmOpen(true)} disabled={totals.payable <= 0}><Wallet /> Confirm & Pay</Button>
+                  <Button onClick={() => setConfirmOpen(true)} disabled={totals.payable <= 0}><Wallet /> Submit to wallets</Button>
                 </div>
               )}
             </CardContent>
@@ -281,19 +281,14 @@ export default function PayoutBatchPage() {
 
       {/* Confirm & pay */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent title="Confirm & pay riders" description={`This pays ${lines.filter((l) => l.rider_id && l.status === "pending").length} rider(s) a total of ${formatINR(totals.payable)}. It records a paid payout for each and can't be undone.`}>
+        <DialogContent title="Submit to rider wallets" description={`This credits ${lines.filter((l) => l.rider_id && l.status === "pending").length} rider wallet(s) a total of ${formatINR(totals.payable)} as money owed. You then pay each rider from their Wallet and enter the UTR. This can't be undone.`}>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Payment method</Label>
-              <Select value={method} onChange={(e) => setMethod(e.target.value as "cash" | "upi" | "bank")}>
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="bank">Bank Transfer</option>
-              </Select>
+            <div className="rounded-lg bg-[var(--card)] p-3 text-sm text-[var(--muted)]">
+              After submitting, open each rider → <span className="font-medium text-[var(--fg)]">Wallet → Record Payment</span> to pay them (UPI/bank/cash) and save the UTR reference.
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-              <Button onClick={confirmPay} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Wallet />} Pay {formatINR(totals.payable)}</Button>
+              <Button onClick={confirmPay} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Wallet />} Credit {formatINR(totals.payable)}</Button>
             </div>
           </div>
         </DialogContent>
