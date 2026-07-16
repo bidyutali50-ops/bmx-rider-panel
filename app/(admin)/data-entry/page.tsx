@@ -120,6 +120,8 @@ export default function DataEntryPage() {
       distance_km: Number(form.distance_km || 0),
       earnings: calc.earnings, incentive: calc.incentive, extra_incentive: Number(form.incentive || 0), penalty: calc.penalty,
       remarks: form.remarks.trim() || null,
+      // An admin typed this. Protect it: punches and client imports must not overwrite it.
+      source: "manual", auto_generated: false,
     };
     const { error } = await supabase.from("data_entries").upsert(payload, { onConflict: "rider_id,entry_date" });
     setSaving(false);
