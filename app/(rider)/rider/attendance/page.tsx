@@ -10,6 +10,7 @@ import { todayISO } from "@/lib/utils";
 import type { Attendance, AttendanceStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SwipeAction } from "@/components/app/swipe-action";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -25,7 +26,6 @@ export default function RiderAttendancePage() {
   const { data: me } = useMyProfile();
   const [month, setMonth] = useState(todayISO().slice(0, 7));
   const [busy, setBusy] = useState(false);
-  const [locating, setLocating] = useState(false);
   const today = todayISO();
 
   const todayQ = useQuery({
@@ -57,25 +57,15 @@ export default function RiderAttendancePage() {
     return s;
   }, [monthQ.data]);
 
-  /** Ask the phone for a precise fix. Rejects quickly if permission is denied. */
-  function getLocation(): Promise<{ lat: number; lng: number }> {
-    return new Promise((resolve, reject) => {
-      if (!("geolocation" in navigator)) {
-        reject(new Error("This device cannot share location."));
-        return;
-      }
+  /** Best-effort location. Never blocks the punch — we just record it if offered. */
+  function tryLocation(): Promise<{ lat: number; lng: number } | null> {
+    return new Promise((resolve) => {
+      if (!("geolocation" in navigator)) return resolve(null);
+      const done = (v: { lat: number; lng: number } | null) => resolve(v);
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => {
-          if (err.code === err.PERMISSION_DENIED) {
-            reject(new Error("Location permission denied. Allow location for this site, then try again."));
-          } else if (err.code === err.TIMEOUT) {
-            reject(new Error("Could not get your location in time. Move outdoors and try again."));
-          } else {
-            reject(new Error("Could not get your location. Turn on GPS and try again."));
-          }
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        (pos) => done({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => done(null),
+        { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
       );
     });
   }
@@ -83,24 +73,14 @@ export default function RiderAttendancePage() {
   async function punch(action: "in" | "out") {
     if (!me) return;
     setBusy(true);
-    setLocating(true);
-
-    let coords: { lat: number; lng: number } | null = null;
-    try {
-      coords = await getLocation();
-    } catch (e) {
-      setBusy(false); setLocating(false);
-      toast.error("Location needed", { description: String((e as Error).message) });
-      return;
-    }
-    setLocating(false);
+    const coords = await tryLocation();
 
     let error: { message: string } | null = null;
     try {
       const res = await supabase.rpc("rider_punch", {
         p_action: action,
-        p_lat: coords.lat,
-        p_lng: coords.lng,
+        p_lat: coords?.lat ?? null,
+        p_lng: coords?.lng ?? null,
       });
       error = res.error;
     } catch (e) {
@@ -118,8 +98,8 @@ export default function RiderAttendancePage() {
 
     toast.success(action === "in" ? "Punched in" : "Punched out", {
       description: action === "in"
-        ? "Your shift has started. Half of your daily MG is credited; punch out to earn the full amount."
-        : "Shift complete. Your full daily MG has been credited.",
+        ? "Your shift has started. Punch out after 10 hours to earn your full daily MG."
+        : "Shift complete. Your earnings have been updated.",
     });
     qc.invalidateQueries({ queryKey: ["my-attendance-today"] });
     qc.invalidateQueries({ queryKey: ["my-attendance-month"] });
@@ -138,7 +118,7 @@ export default function RiderAttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle>Today · {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", weekday: "long" })}</CardTitle>
-          <CardDescription>Punch in at your hub when you start, and punch out when you finish. Location is checked.</CardDescription>
+          <CardDescription>Swipe to punch in when you start, and out when you finish. A 10-hour shift earns your full daily MG.</CardDescription>
         </CardHeader>
         <CardContent>
           {todayQ.isLoading ? <Skeleton className="h-20" /> : (
@@ -157,14 +137,16 @@ export default function RiderAttendancePage() {
                   {t ? <Badge variant={BADGE[t.status]}>{t.status.replace("_", " ")}</Badge> : <Badge variant="muted">not marked</Badge>}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="w-full sm:max-w-sm">
                 {!t?.check_in && (
-                  <Button onClick={checkIn} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogIn />} {locating ? "Getting location…" : "Punch In"}</Button>
+                  <SwipeAction label="Swipe to Punch In" onComplete={checkIn} busy={busy} />
                 )}
                 {t?.check_in && !t?.check_out && (
-                  <Button variant="secondary" onClick={checkOut} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <LogOut />} {locating ? "Getting location…" : "Punch Out"}</Button>
+                  <SwipeAction label="Swipe to Punch Out" onComplete={checkOut} busy={busy} tone="slate" />
                 )}
-                {t?.check_in && t?.check_out && <Badge variant="success">Shift complete</Badge>}
+                {t?.check_in && t?.check_out && (
+                  <SwipeAction label="Shift complete" onComplete={() => {}} done doneLabel="Shift complete" disabled />
+                )}
               </div>
             </div>
           )}
