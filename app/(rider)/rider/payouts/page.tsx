@@ -53,19 +53,46 @@ export default function RiderPayoutsPage() {
 
   const balance = Number(walletQ.data?.wallet_balance ?? 0);
 
+  // The server decides what's allowed; the UI just reflects it.
+  const eligQ = useQuery({
+    queryKey: ["my-payout-eligibility"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("my_payout_eligibility");
+      if (error) throw error;
+      return data as {
+        available: number; pending: number; min_required: number;
+        requested_today: boolean; can_request: boolean; reason: string | null;
+      };
+    },
+  });
+  const elig = eligQ.data;
+  const available = Number(elig?.available ?? 0);
+
   async function submit() {
     const amt = Number(amount);
     if (!me) return;
     if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
-    if (amt > balance) { toast.error("Amount exceeds wallet balance", { description: `Available: ${formatINR(balance)}` }); return; }
+    if (amt > available) { toast.error("More than you have", { description: `You can request up to ${formatINR(available)}` }); return; }
     if (method === "upi" && !me.upi_id) { toast.error("No UPI ID on file", { description: "Update your profile or choose bank transfer." }); return; }
     if (method === "bank" && !me.account_number) { toast.error("No bank account on file", { description: "Update your profile or choose UPI." }); return; }
     setBusy(true);
-    const { error } = await supabase.from("payout_requests").insert({
-      rider_id: me.id, amount: amt, method, note: note.trim() || null, status: "pending",
-    });
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.rpc("request_payout", {
+        p_amount: amt, p_method: method, p_note: note.trim() || null,
+      });
+      error = res.error;
+    } catch (e) {
+      error = { message: String((e as Error)?.message ?? e) };
+    }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      const net = /failed to fetch|networkerror|load failed/i.test(error.message);
+      toast.error(net ? "No connection" : "Could not request", {
+        description: net ? "Check your internet and try again." : error.message.replace(/^.*?:\s*/, ""),
+      });
+      return;
+    }
     toast.success("Payout requested", { description: `${formatINR(amt)} via ${method.toUpperCase()}` });
     pushNotification({
       audience: "staff", type: "payout", title: "New payout request",
@@ -74,6 +101,7 @@ export default function RiderPayoutsPage() {
     setAmount(""); setNote("");
     qc.invalidateQueries({ queryKey: ["my-payouts"] });
     qc.invalidateQueries({ queryKey: ["my-wallet"] });
+    qc.invalidateQueries({ queryKey: ["my-payout-eligibility"] });
   }
 
   return (
@@ -88,13 +116,26 @@ export default function RiderPayoutsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Request Payout</CardTitle>
-          <CardDescription>Withdraw from your wallet balance. Requests are reviewed by admin.</CardDescription>
+          <CardDescription>One request per day. You need at least ₹500 in your wallet to request.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {elig && !elig.can_request && elig.reason && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+              <Hourglass className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <p className="font-medium">{elig.reason}</p>
+                {!elig.requested_today && (
+                  <p className="mt-0.5 text-xs opacity-80">
+                    Available now: <span className="money">{formatINR(available)}</span> · Minimum <span className="money">₹500</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Amount (₹)</Label>
-              <Input type="number" min={1} max={balance} value={amount} onChange={(e) => setAmount(e.target.value)} className="money" placeholder={`Up to ${formatINR(balance)}`} />
+              <Input type="number" min={1} max={available} value={amount} onChange={(e) => setAmount(e.target.value)} className="money" placeholder={`Up to ${formatINR(available)}`} disabled={!elig?.can_request} />
             </div>
             <div className="space-y-1.5">
               <Label>Method</Label>
@@ -109,7 +150,7 @@ export default function RiderPayoutsPage() {
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
           <div className="flex justify-end">
-            <Button onClick={submit} disabled={busy || !me}>
+            <Button onClick={submit} disabled={busy || !me || !elig?.can_request}>
               {busy ? <Loader2 className="animate-spin" /> : <Send />} Submit Request
             </Button>
           </div>
