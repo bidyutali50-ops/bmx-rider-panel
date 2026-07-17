@@ -3,38 +3,51 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* BM Xpress palette — asphalt, paper, hazard orange, route teal */
-  --color-brand-50: #fff3ec;
-  --color-brand-100: #ffe3d1;
-  --color-brand-200: #ffc3a1;
-  --color-brand-300: #ff9c66;
-  --color-brand-400: #fb7530;
-  --color-brand-500: #f4570c;
-  --color-brand-600: #d94708;
-  --color-brand-700: #b1370a;
-  --color-brand-800: #8d2d10;
-  --color-brand-900: #732810;
+  /* ------------------------------------------------------------------
+     BM Xpress — the consignment note.
+     Indian last-mile runs on carbon-copy docket books: warm paper,
+     machine-printed figures, black ink, and one stamp of colour.
+     Neutrals here are deliberately WARM (yellow-leaning), not the
+     blue-grey slate every dashboard defaults to.
+     ------------------------------------------------------------------ */
 
-  --color-ink-50: #f5f7f9;
-  --color-ink-100: #e9edf1;
-  --color-ink-200: #d3dae2;
-  --color-ink-300: #aeb9c6;
-  --color-ink-400: #8394a5;
-  --color-ink-500: #64768a;
-  --color-ink-600: #4f5e72;
-  --color-ink-700: #414d5d;
-  --color-ink-800: #39424f;
-  --color-ink-850: #1d232b;
-  --color-ink-900: #161b21;
-  --color-ink-950: #0c0f13;
+  /* Hazard orange — the stamp. Used sparingly, never as wallpaper. */
+  --color-brand-50: #fdf3ec;
+  --color-brand-100: #fae1cf;
+  --color-brand-200: #f5c09b;
+  --color-brand-300: #ef9862;
+  --color-brand-400: #ea7434;
+  --color-brand-500: #e4570f;
+  --color-brand-600: #c2450a;
+  --color-brand-700: #99360c;
+  --color-brand-800: #7a2d10;
+  --color-brand-900: #64270f;
 
-  --color-teal-500: #0e7c7b;
+  /* Paper and ink — warm greys. The backbone of the interface. */
+  --color-ink-50:  #faf8f4;
+  --color-ink-100: #f2eee7;
+  --color-ink-200: #e4ded3;
+  --color-ink-300: #cfc7b8;
+  --color-ink-400: #a79d8c;
+  --color-ink-500: #7d7466;
+  --color-ink-600: #5f584d;
+  --color-ink-700: #47423a;
+  --color-ink-800: #2f2b26;
+  --color-ink-850: #211e1a;
+  --color-ink-900: #1a1714;
+  --color-ink-950: #110f0d;
 
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  /* Route teal — the second ink on a docket. */
+  --color-teal-500: #0f6f66;
+
+  /* Archivo: an industrial grotesque built for forms and signage.
+     Plex Mono for every figure — money should look machine-printed. */
+  --font-display: "Archivo", system-ui, sans-serif;
   --font-sans: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --radius-card: 0.875rem;
+  /* Dockets have corners, not pillows. */
+  --radius-card: 0.375rem;
 
   --animate-fade-up: fade-up 0.45s cubic-bezier(0.21, 0.6, 0.35, 1) both;
   @keyframes fade-up {
@@ -44,19 +57,19 @@
 }
 
 :root {
-  --bg: var(--color-ink-50);
-  --card: #ffffff;
-  --card-glass: rgba(255, 255, 255, 0.72);
+  --bg: var(--color-ink-100);
+  --card: #fffefb;
+  --card-glass: rgba(255, 254, 251, 0.78);
   --border: var(--color-ink-200);
   --fg: var(--color-ink-900);
-  --muted: var(--color-ink-500);
+  --muted: var(--color-ink-600);
 }
 
 .dark {
   --bg: var(--color-ink-950);
   --card: var(--color-ink-900);
-  --card-glass: rgba(22, 27, 33, 0.72);
-  --border: #242c36;
+  --card-glass: rgba(26, 23, 20, 0.78);
+  --border: #302b25;
   --fg: var(--color-ink-100);
   --muted: var(--color-ink-400);
 }
@@ -68,6 +81,25 @@ body {
   color: var(--fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Headings are set like the headings on a printed form: slightly
+   narrowed, tightly tracked, weighty. Not marketing copy. */
+.font-display,
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-stretch: 92%;
+  letter-spacing: -0.015em;
+}
+
+/* The small uppercase captions that label a field on a docket. */
+.field-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
 }
 
 /* Signature: waybill money figure — mono digits over a dashed baseline */
