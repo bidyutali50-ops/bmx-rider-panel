@@ -5,6 +5,10 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/**
+ * A figure on the console. Left rule in the tone colour (like a ledger stripe),
+ * mono value, small caps label — reads as a printed metric, not a marketing tile.
+ */
 export function StatCard({
   label,
   title,
@@ -27,36 +31,37 @@ export function StatCard({
   money?: boolean;
 }) {
   const heading = title ?? label ?? "";
-  const tones: Record<string, string> = {
-    default: "text-brand-500 bg-brand-500/10",
-    brand: "text-brand-500 bg-brand-500/10",
-    success: "text-emerald-500 bg-emerald-500/10",
-    warning: "text-amber-500 bg-amber-500/10",
-    warn: "text-amber-500 bg-amber-500/10",
-    danger: "text-red-500 bg-red-500/10",
-    teal: "text-teal-500 bg-teal-500/10",
+  const rule: Record<string, string> = {
+    default: "bg-brand-500", brand: "bg-brand-500",
+    success: "bg-emerald-500", warning: "bg-amber-500", warn: "bg-amber-500",
+    danger: "bg-red-500", teal: "bg-teal-500",
+  };
+  const ink: Record<string, string> = {
+    default: "text-brand-500", brand: "text-brand-500",
+    success: "text-emerald-500", warning: "text-amber-500", warn: "text-amber-500",
+    danger: "text-red-500", teal: "text-teal-500",
   };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.35, ease: [0.21, 0.6, 0.35, 1] }}
-      className="glass rounded-[var(--radius-card)] p-4"
+      transition={{ delay: index * 0.04, duration: 0.32, ease: [0.21, 0.6, 0.35, 1] }}
+      className="surface relative overflow-hidden rounded-[var(--radius-card)] p-4 pl-5"
     >
+      {/* ledger stripe */}
+      <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", rule[tone])} />
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">{heading}</p>
-        <span className={cn("rounded-lg p-1.5", tones[tone])}>
-          <Icon className="size-4" />
-        </span>
+        <p className="field-label">{heading}</p>
+        <Icon className={cn("size-4", ink[tone])} />
       </div>
       {loading ? (
         <Skeleton className="mt-2 h-8 w-24" />
       ) : (
-        <p className={cn("mt-1.5 text-2xl font-semibold tracking-tight", money ? "money" : "font-display")}>
+        <p className={cn("mt-1.5 text-2xl font-bold tracking-tight", money ? "money tabular-nums" : "font-display")}>
           {value}
         </p>
       )}
-      {hint && <p className="mt-1 truncate text-xs text-[var(--muted)]">{hint}</p>}
+      {hint && <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{hint}</p>}
     </motion.div>
   );
 }

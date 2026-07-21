@@ -23,18 +23,41 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Role } from "@/lib/types";
 import { ROLE_LABELS } from "@/lib/types";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
-  { href: "/hubs", label: "Hubs", icon: Warehouse, roles: ["super_admin", "admin", "hub_manager"] },
-  { href: "/riders", label: "Riders", icon: Bike, roles: ["super_admin", "admin", "hub_manager"] },
-  { href: "/data-entry", label: "Data Entry", icon: ClipboardList, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
-  { href: "/client-import", label: "Client Import", icon: FileSpreadsheet, roles: ["super_admin", "admin"] },
-  { href: "/rider-payout", label: "Rider Payout", icon: CreditCard, roles: ["super_admin", "admin"] },
-  { href: "/pending-entries", label: "Pending Entries", icon: AlertTriangle, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
-  { href: "/payouts", label: "Payouts", icon: Wallet, roles: ["super_admin", "admin"] },
-  { href: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
-  { href: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "admin", "hub_manager"] },
-  { href: "/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
+const SECTIONS: {
+  title: string | null;
+  items: { href: string; label: string; icon: typeof LayoutDashboard; roles: string[] }[];
+}[] = [
+  {
+    title: null,
+    items: [
+      { href: "/dashboard", label: "Dispatch", icon: LayoutDashboard, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { href: "/riders", label: "Riders", icon: Bike, roles: ["super_admin", "admin", "hub_manager"] },
+      { href: "/hubs", label: "Hubs", icon: Warehouse, roles: ["super_admin", "admin", "hub_manager"] },
+      { href: "/data-entry", label: "Data Entry", icon: ClipboardList, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
+      { href: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
+      { href: "/pending-entries", label: "Pending", icon: AlertTriangle, roles: ["super_admin", "admin", "hub_manager", "data_entry"] },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { href: "/client-import", label: "Client Import", icon: FileSpreadsheet, roles: ["super_admin", "admin"] },
+      { href: "/rider-payout", label: "Rider Payout", icon: CreditCard, roles: ["super_admin", "admin"] },
+      { href: "/payouts", label: "Payouts", icon: Wallet, roles: ["super_admin", "admin"] },
+      { href: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "admin", "hub_manager"] },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
+    ],
+  },
 ];
 
 export function Sidebar({
@@ -57,8 +80,6 @@ export function Sidebar({
     router.refresh();
   }
 
-  const items = NAV.filter((n) => n.roles.includes(role));
-
   return (
     <>
       {open && (
@@ -77,30 +98,43 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-          {items.map((item) => {
-            const active = pathname.startsWith(item.href);
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+          {SECTIONS.map((section, si) => {
+            const visible = section.items.filter((n) => n.roles.includes(role));
+            if (!visible.length) return null;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-brand-500/10 text-brand-600 dark:text-brand-400"
-                    : "text-[var(--muted)] hover:bg-ink-100 hover:text-[var(--fg)] dark:hover:bg-ink-850"
+              <div key={si} className="space-y-0.5">
+                {section.title && (
+                  <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]/70">
+                    {section.title}
+                  </p>
                 )}
-              >
-                <span
-                  className={cn(
-                    "h-4 w-[3px] rounded-full transition-colors",
-                    active ? "bg-brand-500" : "bg-transparent group-hover:bg-ink-300 dark:group-hover:bg-ink-700"
-                  )}
-                />
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
+                {visible.map((item) => {
+                  const active = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-brand-500/10 text-brand-600 dark:text-brand-400"
+                          : "text-[var(--muted)] hover:bg-ink-100 hover:text-[var(--fg)] dark:hover:bg-ink-850"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-4 w-[3px] rounded-full transition-colors",
+                          active ? "bg-brand-500" : "bg-transparent group-hover:bg-ink-300 dark:group-hover:bg-ink-700"
+                        )}
+                      />
+                      <item.icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
