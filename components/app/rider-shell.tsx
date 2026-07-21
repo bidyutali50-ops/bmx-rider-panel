@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, CalendarCheck, UserRound, LogOut } from "lucide-react";
+import { LayoutDashboard, Wallet, CalendarCheck, UserRound, LogOut, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/rider", label: "Home", icon: LayoutDashboard },
   { href: "/rider/payouts", label: "Wallet", icon: Wallet },
   { href: "/rider/attendance", label: "Attendance", icon: CalendarCheck },
+  { href: "/rider/bill", label: "Bill", icon: ReceiptText },
   { href: "/rider/profile", label: "Profile", icon: UserRound },
 ];
 
