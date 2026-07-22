@@ -59,7 +59,7 @@ export function RiderShell({ userId, name, children }: { userId: string; name: s
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-3xl grid-cols-4">
+        <div className="mx-auto grid max-w-3xl grid-cols-5">
           {NAV.map((item) => {
             const active = pathname === item.href;
             return (
