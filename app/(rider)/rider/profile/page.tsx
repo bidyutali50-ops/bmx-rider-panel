@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Save, ShieldCheck, KeyRound } from "lucide-react";
+import { Loader2, Save, ShieldCheck, KeyRound, Download } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useMyProfile } from "@/lib/hooks";
 import { displayLogin } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InstallAppButton } from "@/components/app/install-app-button";
 
 export default function RiderProfilePage() {
   const qc = useQueryClient();
@@ -131,6 +132,16 @@ export default function RiderProfilePage() {
               {changing ? <Loader2 className="animate-spin" /> : <KeyRound />} Update Password
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Download className="size-4 text-brand-500" /> Install App</CardTitle>
+          <CardDescription>Add BM Xpress to your home screen for one-tap access</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <InstallAppButton />
         </CardContent>
       </Card>
     </div>

@@ -176,19 +176,25 @@ export default function RiderHomePage() {
           </div>
         </div>
 
-        <div className="mt-4 flex h-24 items-end justify-between gap-1.5">
+        {/* Bar track: fixed height so every bar shares one baseline */}
+        <div className="mt-4 flex h-[88px] items-end gap-2">
           {last7.map((d, i) => (
-            <div key={d.iso} className="flex flex-1 flex-col items-center gap-1.5">
-              <div className="relative flex w-full flex-1 items-end justify-center">
-                <motion.div
-                  initial={{ height: anim ? 0 : `${Math.max(6, (d.net / peak) * 100)}%` }}
-                  animate={{ height: `${Math.max(6, (d.net / peak) * 100)}%` }}
-                  transition={{ delay: 0.1 + i * 0.05, duration: 0.5, ease: [0.21, 0.6, 0.35, 1] }}
-                  className={`w-full max-w-[26px] rounded-md ${d.isToday ? "bg-brand-500" : d.net > 0 ? "bg-brand-500/30" : "bg-[var(--border)]"}`}
-                />
-              </div>
-              <span className={`text-[10px] font-medium ${d.isToday ? "text-brand-600 dark:text-brand-400" : "text-[var(--muted)]"}`}>{d.label}</span>
+            <div key={d.iso} className="flex h-full flex-1 items-end justify-center">
+              <motion.div
+                initial={{ height: anim ? "2%" : `${Math.max(4, (d.net / peak) * 100)}%` }}
+                animate={{ height: `${Math.max(4, (d.net / peak) * 100)}%` }}
+                transition={{ delay: 0.1 + i * 0.05, duration: 0.5, ease: [0.21, 0.6, 0.35, 1] }}
+                className={`w-full max-w-[22px] rounded-t-md ${d.isToday ? "bg-brand-500" : d.net > 0 ? "bg-brand-500/30" : "bg-[var(--border)]"}`}
+              />
             </div>
+          ))}
+        </div>
+        {/* Labels: same column grid as bars, so they line up exactly */}
+        <div className="mt-2 flex gap-2">
+          {last7.map((d) => (
+            <span key={d.iso} className={`flex-1 text-center text-[10px] font-medium tabular-nums ${d.isToday ? "text-brand-600 dark:text-brand-400" : "text-[var(--muted)]"}`}>
+              {d.label}
+            </span>
           ))}
         </div>
       </div>
@@ -241,13 +247,13 @@ export default function RiderHomePage() {
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-            {entries.slice(0, 12).map((e, i) => {
+            {(() => { const rows = entries.slice(0, 12); const listPeak = Math.max(1, ...rows.map((r) => Number(r.net_amount))); return rows.map((e, i) => {
               const amt = Number(e.net_amount);
-              const w = Math.round((amt / Math.max(1, peak)) * 100);
+              const w = Math.min(100, Math.round((amt / listPeak) * 100));
               const d = new Date(e.entry_date + "T00:00:00");
               return (
                 <div key={e.entry_date} className={`relative px-4 py-3 ${i > 0 ? "waybill-rule" : ""}`}>
-                  <div aria-hidden className="absolute inset-y-0 left-0 bg-brand-500/[0.06]" style={{ width: `${w}%` }} />
+                  <div aria-hidden className="absolute inset-y-0 left-0 rounded-r-md bg-brand-500/[0.07]" style={{ width: `${w}%` }} />
                   <div className="relative flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold">
@@ -265,7 +271,7 @@ export default function RiderHomePage() {
                   </div>
                 </div>
               );
-            })}
+            }); })()}
           </div>
         )}
       </div>
