@@ -182,7 +182,7 @@ export default function RidersPage() {
                           title={r.active ? "Active" : "Inactive"}
                         />
                         <div className="min-w-0">
-                          <Link href={`/riders/${r.id}`} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                          <Link href={`/riders/${r.id}`} className="font-medium text-violet-700 hover:underline dark:text-violet-400">
                             {r.full_name}
                           </Link>
                           <div className="money text-[11px] text-[var(--muted)]">
